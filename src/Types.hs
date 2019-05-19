@@ -5,7 +5,7 @@ import RIO
 import RIO.Process
 
 -- | Command line arguments
-data Options = Options
+newtype Options = Options
   { optionsVerbose :: !Bool
   }
 
@@ -22,9 +22,3 @@ instance HasProcessContext App where
   processContextL = lens appProcessContext (\x y -> x { appProcessContext = y })
 
 ----------------------------------------------------
-
-data BoolExp a = Lit a
-               | And (BoolExp a) (BoolExp a)
-               | Or (BoolExp a) (BoolExp a)
-               | Not (BoolExp a)
-               deriving (Eq, Show)
