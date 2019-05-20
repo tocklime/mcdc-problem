@@ -1,40 +1,111 @@
+{-# LANGUAGE TupleSections #-}
 module TruthVectors where
 
-import           Data.Map        (Map)
-import qualified Data.Map.Strict as M
-import           Data.Set        (Set)
-import qualified Data.Set        as S
+import           Data.List (intercalate)
+import           Data.Set  (Set)
+import qualified Data.Set  as S
 
-type TruthVector a = Map a Bool
+-- | A truthvector of a is a pair of sets 'falses' and 'trues'. An element is false if it is in
+-- the first set, true if it is in the second. If it is in neither the value is not (yet) defined
+-- and if in both then the vector has a conflict.
+data TruthVector a = TruthVector {falses,trues::Set a} deriving (Show,Ord,Eq)
 
-type TruthVectorSet a = Set (TruthVector a)
+-- | The empty TruthVector
+empty :: TruthVector a
+empty = TruthVector S.empty S.empty
 
-data ValueAssignment a = Val
-  { falses :: TruthVectorSet a
-  , trues  :: TruthVectorSet a
-  } deriving (Show)
+-- | Insert a new value with the given booleanness.
+insert :: Ord a => a -> Bool -> TruthVector a -> TruthVector a
+insert a truthness (TruthVector fs ts)
+   | truthness == True = TruthVector fs (S.insert a ts)
+   | otherwise         = TruthVector (S.insert a fs) ts
 
-safeUnion :: (Ord a, Eq b) => Map a b -> Map a b -> Either (Set a) (Map a b)
-safeUnion ma mb
-  | null differentValues = Right $ M.union ma mb
-  | otherwise = Left differentValues
+-- | Take a single value and mark it true in a new truth vector
+singletonTrue :: Ord a => a -> TruthVector a
+singletonTrue a = insert a True empty
+
+-- | Take a single value and mark it false in a new truth vector
+singletonFalse :: Ord a => a -> TruthVector a
+singletonFalse a = insert a False empty
+
+-- | Create a TruthVector from a list of false items and a list of true items.
+fromLists :: Ord a => [a] -> [a] -> TruthVector a
+fromLists fs ts = TruthVector (S.fromList fs) (S.fromList ts)
+
+-- | Create a TruthVector from a list of items and a function to assign truth to them.
+fromFuncAndSet :: Ord a => (a -> Bool) -> Set a -> TruthVector a
+fromFuncAndSet f = foldr (\a -> insert a (f a)) empty
+
+-- | Swap the falses and trues sets, making everything that was false true and vice versa.
+invert :: TruthVector a -> TruthVector a
+invert (TruthVector fs ts) = TruthVector ts fs
+
+-- | Return a set of all elements defined in the TruthVector
+elements :: Ord a => TruthVector a -> Set a
+elements (TruthVector fs ts) = S.union fs ts
+
+-- | Unmark an item as true and false -- remove it from both sets.
+delete :: Ord a => a -> TruthVector a -> TruthVector a
+delete a tv = TruthVector (S.delete a (falses tv)) (S.delete a (trues tv))
+
+-- | Determine the value of a given element. Returns Nothing for conflicted or undefined.
+lookup :: Ord a => a -> TruthVector a -> Maybe Bool
+lookup a tv =
+  case (isTrue,isFalse) of
+    (True,False) -> Just True
+    (False,True) -> Just False
+    _            -> Nothing
   where
-    commonKeys = S.intersection (M.keysSet ma) (M.keysSet mb)
-    differentValues = S.filter (\k -> ma M.! k /= mb M.! k) commonKeys
+    isTrue = a `S.member` (trues tv)
+    isFalse = a `S.member` (falses tv)
 
-joinVals ::
-     Ord a
-  => Set (Map a Bool)
-  -> Map a Bool
-  -> Either (Set a) (Set (Map a Bool))
-joinVals as bs = S.fromList <$> sequence (safeUnion bs <$> S.toList as)
+-- | Merges 2 truthvectors naively. The resulting vector may have conflicts
+merge :: Ord a => TruthVector a -> TruthVector a -> TruthVector a
+merge a b = TruthVector (S.union (falses a) (falses b))
+                        (S.union (trues a) (trues b))
 
-singleton :: (Ord a) => a -> ValueAssignment a
-singleton a =
-  Val
-    (S.singleton (M.fromList [(a, False)]))
-    (S.singleton (M.fromList [(a, True)]))
+-- | Find all contradictions in the TruthVector.
+contradictions :: Ord a => TruthVector a -> Set a
+contradictions a = S.intersection (falses a) (trues a)
 
-allVarsInAssignment :: (Ord a) => ValueAssignment a -> [a]
-allVarsInAssignment ass =
-  S.toList . S.unions . S.map M.keysSet $ S.union (falses ass) (trues ass)
+-- | Try to merge 2 TruthVectors. If the resulting TruthVector is conflicted
+-- then return Nothing, otherwise return the result.
+safeMerge :: Ord a => TruthVector a -> TruthVector a -> Either (Set a) (TruthVector a)
+safeMerge a b
+  | S.null contras = Right merged
+  | otherwise = Left contras
+  where
+    merged = merge a b
+    contras = contradictions merged
+
+-- | Join each element of the set @as with @b. If any of the resulting TruthVectors are
+-- conflicted then return a Left value containing the first conflicts found. Otherwise return
+-- the new TruthVectors.
+joinVals :: Ord a
+  => Set (TruthVector a)
+  -> TruthVector a
+  -> Either (Set a) (Set (TruthVector a))
+joinVals as b = S.fromList <$> sequence (safeMerge b <$> S.toList as)
+
+joinVals2 :: Ord a => Set (TruthVector a) -> Set (TruthVector a) -> Set (TruthVector a)
+joinVals2 as bs = S.fromList
+    [ c
+    | a <- S.toList as
+    , b <- S.toList bs
+    , let c = merge a b
+    , S.null $ contradictions c
+    ]
+
+
+prettyPrint :: Ord a => (a -> String) -> (a -> String) -> TruthVector a -> String
+prettyPrint ff tf tv = concat (showItem <$> S.toList allItems)
+  where
+    allItems = S.union (S.map (,False) (falses tv))
+                  (S.map (,True) (trues tv))
+    showItem (a,True)  = tf a
+    showItem (a,False) = ff a
+
+prettyPrint2 :: (a -> String) -> TruthVector a -> String
+prettyPrint2 f tv = "FALSE: " ++ render (falses tv) ++ " TRUE: "++ render (trues tv)
+  where
+    render = intercalate " " . fmap f . S.toList

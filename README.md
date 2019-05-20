@@ -20,6 +20,8 @@ Currently it works for expressions with no repeating items, such as `(A && B) ||
 
 ## TODO
 
-* Implement a naive powerset-based MCDC coverage solution (for checking more carefully constructed solutions)
-* find equations which the naive one can solve, but the constructor can't (I expect to see things like `(!A && B) || (A && C)` here) * fix those.
+* ~Implement a naive powerset-based MCDC coverage solution (for checking more carefully constructed solutions)~
+* find equations which the naive one can solve, but the constructor can't (I expect to see things like `(!A && B) || (A && C)` here) & fix those. 
+* Find out if it's possible to alter the algorithm to handle `A && A`. If not, then implement some boolexp simplifier.
 * Extend the constructive generator to generate all, rather than maybe one.
+* Implement a Masking / short circuiting version.

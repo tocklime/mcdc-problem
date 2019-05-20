@@ -4,14 +4,16 @@ module ExpSpec
   ( spec
   ) where
 
-import qualified Data.Map.Strict       as M
+import           ConstructiveMcdc
+import           Data.Either           (isRight)
 import qualified Data.Set              as S
-import           Evaluator
 import           Expressions
+import           McdcCheck
+--import           NaiveMcdc
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
 import           Test.QuickCheck
-import           TruthVectors
+import qualified TruthVectors          as TV
 
 newtype TestBE = TestBE
   { unTest :: BoolExp Char
@@ -21,10 +23,10 @@ instance Arbitrary TestBE where
   arbitrary = TestBE <$> sized exp'
     where
       exp' n
-        | n <= 0 = Lit <$> arbitrary
+        | n <= 0 = Lit <$> oneof (pure <$> ['a'..'z'])
         | otherwise =
           oneof
-            [ Lit <$> arbitrary
+            [ Lit <$> oneof (pure <$> ['a'..'z'])
             , Not <$> sub
             , Or <$> sub <*> sub
             , And <$> sub <*> sub
@@ -34,7 +36,7 @@ instance Arbitrary TestBE where
 
 spec :: Spec
 spec =
-  modifyMaxSuccess (const 1000) $ do
+  modifyMaxSuccess (const 100) $ do
     describe "expressions" $ do
       it "Literals return their value" $
         eval (const True) (Lit 'a') `shouldBe` True
@@ -51,22 +53,30 @@ spec =
       S.fromList "abc"
     describe "safe unions" $ do
       it "merges distinct key sets" $
-        safeUnion (M.fromList [('a', 'a')]) (M.fromList [('b', 'b')]) `shouldBe`
-        Right (M.fromList [('a', 'a'), ('b', 'b')])
+        TV.safeMerge (TV.fromLists "" "a") (TV.fromLists "" "b")  `shouldBe`
+        Right (TV.fromLists "" "ab")
       it "merges like keys with like values sets" $
-        safeUnion (M.fromList [('a', 'a')]) (M.fromList [('a', 'a')]) `shouldBe`
-        Right (M.fromList [('a', 'a')])
+        TV.safeMerge (TV.fromLists "" "a") (TV.fromLists "" "a") `shouldBe`
+        Right (TV.fromLists "" "a")
       it "fails when there are like keys with different values" $
-        safeUnion (M.fromList [('a', 'a')]) (M.fromList [('a', 'b')]) `shouldBe`
+        TV.safeMerge (TV.fromLists "a" "") (TV.fromLists "" "a") `shouldBe`
         Left (S.fromList ['a'])
-    describe "MCDC generator" $ do
+    describe "MCDC generator" $ modifyMaxSize (const 5) $ do
+      it "can solve A&A" $
+        isRight . findMcdc $ (And (Lit 'a') (Lit 'a'))
+        {- performance of this is horrid
+      prop "finds a solution if the naive one does" $ \(TestBE e) ->
+        let constr = findMcdc e
+            naive = findAllMcdcNaive e
+        in isRight constr || null naive
+        -}
       prop "the test cases generated return the given values" $ \(TestBE e) ->
         case findMcdc e of
           Left _ -> property Discard
           Right a ->
             property $
-            all (\m -> eval (\c -> m M.! c) e) (S.toList (trues a)) &&
-            all (\m -> not $ eval (\c -> m M.! c) e) (S.toList (falses a))
+            all (\tv -> evalSet (TV.trues tv) e) (S.toList (TV.trues a)) &&
+            all (\tv -> not $ evalSet (TV.trues tv) e) (S.toList (TV.falses a))
       prop "always generates minimal coverage test cases" $ \(TestBE e) ->
         case findMcdc e of
           Left _  -> property Discard
