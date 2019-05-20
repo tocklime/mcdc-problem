@@ -24,7 +24,7 @@ instance Arbitrary TestBE where
                 where sub = exp' (n `div` 2)
 
 spec :: Spec
-spec = do
+spec = modifyMaxSuccess (const 1000) $ do
   describe "expressions" $ do
     it "Literals return their value" $ eval (const True) (Lit 'a') `shouldBe` True
     it "not inverts" $ eval (const False) (Not (Lit 'a')) `shouldBe` True

@@ -69,30 +69,30 @@ joinVals as bs = S.fromList <$> sequence (safeUnion bs <$> S.toList as)
 Just a  <?> _ = Right a
 Nothing <?> e = Left e
 
-data JoinMode = JoinAnd | JoinOr
 data JoinError = NoSingleElement | ValueConflict deriving (Show)
 
-joinWith :: (Ord a) => JoinMode -> ValueAssignment a -> ValueAssignment a -> Either JoinError (ValueAssignment a)
-joinWith mode a b = do
-    aA <- S.lookupMin (f1 a) <?> NoSingleElement
-    aB <- S.lookupMin (f1 b) <?> NoSingleElement
-    asWithB1 <- joinVals (f1 a) aB <?> ValueConflict
-    asWithB2 <- joinVals (f2 a) aB <?> ValueConflict
-    bsWithA1 <- joinVals (f1 b) aA <?> ValueConflict
-    bsWithA2 <- joinVals (f2 b) aA <?> ValueConflict
+joinAnd :: (Ord a) => ValueAssignment a -> ValueAssignment a -> Either JoinError (ValueAssignment a)
+joinAnd a b = do
+    -- needs intelligence to select which single element each time
+    -- otherwise (AB | (!A)C) is unsolvable.
+    aA <- S.lookupMin (trues a) <?> NoSingleElement
+    aB <- S.lookupMin (trues b) <?> NoSingleElement
+    asWithB1 <- joinVals (trues a) aB <?> ValueConflict
+    asWithB2 <- joinVals (falses a) aB <?> ValueConflict
+    bsWithA1 <- joinVals (trues b) aA <?> ValueConflict
+    bsWithA2 <- joinVals (falses b) aA <?> ValueConflict
     let xx = S.union asWithB1 bsWithA1
     let xy = S.union asWithB2 bsWithA2
-    return $ pf Val xy xx
-  where
-    (f1,f2,pf) = case mode of
-                JoinAnd -> (trues,falses,id)
-                JoinOr -> (falses,trues,flip)
+    return $ Val xy xx
   
-joinNot :: ValueAssignment a -> Either e (ValueAssignment a)
-joinNot (Val fs ts) = pure $ Val ts fs
+joinOr :: (Ord a) => ValueAssignment a -> ValueAssignment a -> Either JoinError (ValueAssignment a)
+joinOr a b = joinNot <$> (joinAnd  (joinNot a) (joinNot b))
+
+joinNot :: ValueAssignment a -> ValueAssignment a
+joinNot = Val <$> trues <*> falses
 
 findMcdc :: Ord a => BoolExp a -> Either JoinError (ValueAssignment a)
-findMcdc = monadEval (Evaluator joinNot (joinWith JoinAnd) (joinWith JoinOr) (Right . singletonValAss))
+findMcdc = monadEval (Evaluator (pure . joinNot) joinAnd joinOr (Right . singletonValAss))
 
 hasMcdcPairFor :: Ord a => ValueAssignment a -> a -> Bool
 hasMcdcPairFor ass target = not (null goodSets)
