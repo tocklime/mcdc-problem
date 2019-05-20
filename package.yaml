@@ -23,6 +23,7 @@ dependencies:
 - base >= 4.11 && < 10
 - containers
 - mtl
+- either
 
 ghc-options:
 - -Wall

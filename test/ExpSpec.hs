@@ -7,9 +7,11 @@ module ExpSpec
 import qualified Data.Map.Strict       as M
 import qualified Data.Set              as S
 import           Evaluator
+import           Expressions
 import           Test.Hspec
 import           Test.Hspec.QuickCheck
 import           Test.QuickCheck
+import           TruthVectors
 
 newtype TestBE = TestBE
   { unTest :: BoolExp Char
@@ -43,20 +45,20 @@ spec =
       it "or works" $ eval (== 'a') (Or (Lit 'b') (Lit 'b')) `shouldBe` False
       prop "orworks2" $ \(a :: Int) (b :: Int) ->
         eval (== a) (Or (Lit a) (Lit b)) `shouldBe` True
-    describe "getVarList" $
+    describe "getVarLst" $
       it "gets the list of variables" $
       allVars (And (Lit 'a') (Or (Lit 'b') (Not (Lit 'c')))) `shouldBe`
       S.fromList "abc"
     describe "safe unions" $ do
       it "merges distinct key sets" $
         safeUnion (M.fromList [('a', 'a')]) (M.fromList [('b', 'b')]) `shouldBe`
-        Just (M.fromList [('a', 'a'), ('b', 'b')])
+        Right (M.fromList [('a', 'a'), ('b', 'b')])
       it "merges like keys with like values sets" $
         safeUnion (M.fromList [('a', 'a')]) (M.fromList [('a', 'a')]) `shouldBe`
-        Just (M.fromList [('a', 'a')])
+        Right (M.fromList [('a', 'a')])
       it "fails when there are like keys with different values" $
         safeUnion (M.fromList [('a', 'a')]) (M.fromList [('a', 'b')]) `shouldBe`
-        Nothing
+        Left (S.fromList ['a'])
     describe "MCDC generator" $ do
       prop "the test cases generated return the given values" $ \(TestBE e) ->
         case findMcdc e of
