@@ -16,7 +16,7 @@ Currently it works for expressions with no repeating items, such as `(A && B) ||
   * The result is `(B+C,A+D)`
 * MCDC coverage for or can be done by using the equivalence `(A || B) == !(!A && !B)`
 
-<b id='vector-selection'>1:</b> The selection of a vector is a crucial decision. You must not try to merge two vectors with a conflicting [1]value for a given variable. Ideally, we would use a backtracking algorithm in this selection, and so get all possible MCDC coverage sets.
+<b id='vector-selection'>1:</b> The selection of a vector is a crucial decision. You must not try to merge two vectors with a conflicting value for a given variable. Ideally, we would use a backtracking algorithm in this selection, and so get all possible MCDC coverage sets.
 
 ## TODO
 
