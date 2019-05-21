@@ -50,10 +50,12 @@ joinAnd2 ::
   -> Either (JoinError a) (ValueAssignment a)
 joinAnd2 a b = if hasMcdcCoverage tv then Right tv else Left (NoMcdcCoverage tv)
  where
-  tv = TruthVector (S.union tf ft) tt
+  tv = TruthVector fs tt
+  fs = let ftf = S.union tf ft in if S.null ftf then ff else ftf
   tt = joinVals2 (trues a) (trues b)
   tf = joinVals2 (trues a) (falses b)
   ft = joinVals2 (falses a) (trues b)
+  ff = joinVals2 (falses a) (falses b)
 -- | Same as joinAnd, but for or. Implemented using the equivalence "A || B == !(!A && !B)"
 joinOr ::
      (Ord a)
@@ -71,4 +73,4 @@ joinOr2 a b = invert <$> joinAnd2 (invert a) (invert b)
 -- | BoolExp evaluator which gives a MCDC minimal set for a given expression.
 findMcdc :: Ord a => BoolExp a -> Either (JoinError a) (ValueAssignment a)
 findMcdc =
-  monadEval (Evaluator (pure . invert) joinAnd2 joinOr2 (Right . singleton))
+  monadEval (Evaluator (pure . invert) joinAnd joinOr (Right . singleton))
