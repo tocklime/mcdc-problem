@@ -29,4 +29,5 @@ aAndNotA = And (Lit 'a') (Not (Lit 'a'))
 -- | A && A
 twoAs = Or (And (Lit 'a') (Lit 'b')) (And (Not (Lit 'a')) (Lit 'c'))
 
+-- | (A && B) || (A && C)
 twoAs2 = Or (And (Lit 'a') (Lit 'b')) (And (Lit 'a') (Lit 'c'))
