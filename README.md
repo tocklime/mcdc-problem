@@ -20,7 +20,7 @@ Currently it works for expressions with no repeating items, such as `(A && B) ||
 
 ## Haddock docs
 
-[You can see the documentation and source code here](https://tocklime.github.io/mcdc-problem/index.html)
+[You can see the documentation and source code here](https://tocklime.github.io/mcdc-problem/docs/index.html)
 
 ## Whats next
 
