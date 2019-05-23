@@ -14,6 +14,7 @@ import           Test.Hspec
 import           Test.Hspec.QuickCheck
 import           Test.QuickCheck
 import qualified TruthVectors          as TV
+import Parser(parseUnsafe)
 
 newtype TestBE = TestBE
   { unTest :: BoolExp Char
@@ -23,10 +24,10 @@ instance Arbitrary TestBE where
   arbitrary = TestBE <$> sized exp'
     where
       exp' n
-        | n <= 0 = Lit <$> oneof (pure <$> ['a'..'z'])
+        | n <= 0 = Var <$> oneof (pure <$> ['a'..'z'])
         | otherwise =
           oneof
-            [ Lit <$> oneof (pure <$> ['a'..'z'])
+            [ Var <$> oneof (pure <$> ['a'..'z'])
             , Not <$> sub
             , Or <$> sub <*> sub
             , And <$> sub <*> sub
@@ -39,17 +40,17 @@ spec =
   modifyMaxSuccess (const 100) $ do
     describe "expressions" $ do
       it "Literals return their value" $
-        eval (const True) (Lit 'a') `shouldBe` True
-      it "not inverts" $ eval (const False) (Not (Lit 'a')) `shouldBe` True
-      it "and works" $ eval (== 'a') (And (Lit 'a') (Lit 'b')) `shouldBe` False
-      it "and works" $ eval (== 'a') (And (Lit 'a') (Lit 'a')) `shouldBe` True
-      it "or works" $ eval (== 'a') (Or (Lit 'a') (Lit 'b')) `shouldBe` True
-      it "or works" $ eval (== 'a') (Or (Lit 'b') (Lit 'b')) `shouldBe` False
+        eval (const True) (p "a") `shouldBe` True
+      it "not inverts" $ eval (const False) (Not (Var 'a')) `shouldBe` True
+      it "and works" $ eval (== 'a') (p "a && b") `shouldBe` False
+      it "and works" $ eval (== 'a') (p "a && a") `shouldBe` True
+      it "or works" $ eval (== 'a') (p "a || b") `shouldBe` True
+      it "or works" $ eval (== 'a') (p "b || b") `shouldBe` False
       prop "orworks2" $ \(a :: Int) (b :: Int) ->
-        eval (== a) (Or (Lit a) (Lit b)) `shouldBe` True
+        eval (== a) (Or (Var a) (Var b)) `shouldBe` True
     describe "getVarLst" $
       it "gets the list of variables" $
-      allVars (And (Lit 'a') (Or (Lit 'b') (Not (Lit 'c')))) `shouldBe`
+      allVars (p "a && (b || !c)") `shouldBe`
       S.fromList "abc"
     describe "safe unions" $ do
       it "merges distinct key sets" $
@@ -63,7 +64,7 @@ spec =
         Left (S.fromList ['a'])
     describe "MCDC generator" $ modifyMaxSize (const 5) $ do
       it "can solve A&A" $
-        isRight . findMcdc $ (And (Lit 'a') (Lit 'a'))
+        isRight . findMcdc $ (p "a && a")
         {- performance of this is horrid
       prop "finds a solution if the naive one does" $ \(TestBE e) ->
         let constr = findMcdc e
@@ -81,3 +82,5 @@ spec =
         case findMcdc e of
           Left _  -> property Discard
           Right a -> property $ isMinimalMcdcCoverage a
+  where
+    p = parseUnsafe

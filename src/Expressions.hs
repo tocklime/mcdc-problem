@@ -8,7 +8,7 @@ import qualified Data.Set               as S
 
 -- | A basic boolean expression tree.
 data BoolExp a
-  = Lit a
+  = Var a
   | And (BoolExp a)
         (BoolExp a)
   | Or (BoolExp a)
@@ -43,7 +43,7 @@ pureEvaluator donot doand door dolookup =
 monadEval :: Monad m => Evaluator a b m -> BoolExp a -> m b
 monadEval Evaluator {..} = go
   where
-    go (Lit a)   = evalLookup a
+    go (Var a)   = evalLookup a
     go (Not a)   = go a >>= evalDoNot
     go (And a b) = go a >>= \ga -> go b >>= evalDoAnd ga
     go (Or a b)  = go a >>= \ga -> go b >>= evalDoOr ga

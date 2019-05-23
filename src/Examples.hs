@@ -6,28 +6,28 @@ import           Expressions
 andExpr, orExpr, notExpr, expr1, expr2, expr3, aAndNotA, twoAs, twoAs2 ::
      BoolExp Char
 -- | A && B
-andExpr = And (Lit 'a') (Lit 'b')
+andExpr = And (Var 'a') (Var 'b')
 
 -- | A || B
-orExpr = Or (Lit 'a') (Lit 'b')
+orExpr = Or (Var 'a') (Var 'b')
 
 -- | !A
-notExpr = Not (Lit 'a')
+notExpr = Not (Var 'a')
 
 -- | (A && B) || C
-expr1 = Or (And (Lit 'a') (Lit 'b')) (Lit 'c')
+expr1 = Or (And (Var 'a') (Var 'b')) (Var 'c')
 
 -- | (A || B) && C
-expr2 = Or (Or (Lit 'a') (Lit 'b')) (Lit 'c')
+expr2 = Or (Or (Var 'a') (Var 'b')) (Var 'c')
 
 -- | (A && B) && C
-expr3 = And (And (Lit 'a') (Lit 'b')) (Not (Lit 'c'))
+expr3 = And (And (Var 'a') (Var 'b')) (Not (Var 'c'))
 
 -- | (A && !A)
-aAndNotA = And (Lit 'a') (Not (Lit 'a'))
+aAndNotA = And (Var 'a') (Not (Var 'a'))
 
 -- | A && A
-twoAs = Or (And (Lit 'a') (Lit 'b')) (And (Not (Lit 'a')) (Lit 'c'))
+twoAs = Or (And (Var 'a') (Var 'b')) (And (Not (Var 'a')) (Var 'c'))
 
 -- | (A && B) || (A && C)
-twoAs2 = Or (And (Lit 'a') (Lit 'b')) (And (Lit 'a') (Lit 'c'))
+twoAs2 = Or (And (Var 'a') (Var 'b')) (And (Var 'a') (Var 'c'))
